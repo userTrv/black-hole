@@ -78,7 +78,7 @@ export function buildModels() {
     kiosk: [part(box(3, 2.5, 3), null, { y: -0.25 }), part(box(3.4, 0.4, 3.4), '#e8e2d4', { y: 1.2 }), part(box(2.2, 1, 0.1), '#27313d', { y: -0.1, z: 1.51 })],
     // здания: единичный куб с фасадом, крыша — отдельная часть
     house: [part(box(1, 1, 1), null, {}), part(roofPrism(), '#8c3b2f', {})],
-    shop: [part(box(1, 1, 1), null, {}), part(box(1.02, 0.08, 1.02), '#5b5f66', { y: 0.46 })],
+    shop: [part(box(1, 1, 1), null, {}), part(box(1.02, 0.08, 1.02), '#5b5f66', { y: 0.53 })],
     apartment: [part(box(1, 1, 1), null, {}), part(box(0.5, 0.06, 0.5), '#6e6a66', { y: 0.53 })],
     tower: [part(box(1, 1, 1), null, {}), part(box(0.6, 0.05, 0.6), '#6e6a66', { y: 0.525 })],
   };

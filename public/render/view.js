@@ -303,11 +303,29 @@ function placeCamera(view, dt) {
     view.camera.position.y += (Math.random() - 0.5) * view.shake;
   }
   view.camera.lookAt(target);
-  const reach = 40 + r * 5;
-  view.sun.position.set(hole.x + 30, 80, hole.z + 20);
-  view.sun.target.position.set(hole.x, 0, hole.z);
-  Object.assign(view.sun.shadow.camera, { left: -reach, right: reach, top: reach, bottom: -reach, near: 1, far: 250 });
-  view.sun.shadow.camera.updateProjectionMatrix();
+  placeSun(view, hole.x, hole.z, r);
+}
+
+// Тени без дрожания: размер теневой камеры меняется ступенями, а её центр в осях света
+// привязан к сетке текселей — иначе при движении дыры тени на крышах «плавают»
+const SUN_OFFSET = new THREE.Vector3(30, 80, 20);
+const sunBasis = new THREE.Matrix4().lookAt(SUN_OFFSET, new THREE.Vector3(), new THREE.Vector3(0, 1, 0));
+const sunBasisInv = sunBasis.clone().invert();
+const snapV = new THREE.Vector3();
+function placeSun(view, x, z, r) {
+  const reach = Math.ceil((40 + r * 5) / 10) * 10;
+  const cam = view.sun.shadow.camera;
+  if (cam.right !== reach) {
+    Object.assign(cam, { left: -reach, right: reach, top: reach, bottom: -reach, near: 1, far: 250 });
+    cam.updateProjectionMatrix();
+  }
+  const texel = (2 * reach) / view.sun.shadow.mapSize.x;
+  snapV.set(x, 0, z).applyMatrix4(sunBasisInv);
+  snapV.x = Math.round(snapV.x / texel) * texel;
+  snapV.y = Math.round(snapV.y / texel) * texel;
+  snapV.applyMatrix4(sunBasis);
+  view.sun.target.position.copy(snapV);
+  view.sun.position.copy(snapV).add(SUN_OFFSET);
 }
 
 // Сетчатая прозрачность перед дырой (для зданий и деревьев)
