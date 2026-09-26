@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Чёрная дыра — съешь город</title>
+  <meta name="description" content="Браузерная игра: управляй чёрной дырой, поглощай город и расти, пока не съешь небоскрёбы. Две минуты на раунд.">
+  <meta name="theme-color" content="#16121f">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css">
+  <script type="importmap">
+    { "imports": { "three": "./vendor/three.module.js" } }
+  </script>
+</head>
+<body>
+  <canvas id="scene"></canvas>
+
+  <div id="loading" class="screen">
+    <div class="logo">ЧЁРНАЯ<span>ДЫРА</span></div>
+    <p>Загрузка…</p>
+  </div>
+
+  <div id="menu" class="screen hidden">
+    <div class="logo">ЧЁРНАЯ<span>ДЫРА</span></div>
+    <p class="tagline">Поглощай город и расти. Сначала люди и урны, потом машины, дома и, если успеешь, небоскрёбы. Две минуты.</p>
+    <button id="btn-play" class="play">Играть</button>
+    <p id="best" class="small"></p>
+    <p class="small mouse-only">Зажми и тяни мышь — дыра поедет туда. Или WASD / стрелки.</p>
+    <p class="small touch-only">Веди пальцем по экрану — дыра поедет туда.</p>
+  </div>
+
+  <div id="hud" class="hidden">
+    <div class="bar">
+      <div class="stat"><span class="label">Очки</span><b id="score">0</b></div>
+      <div class="timer" id="timer">2:00</div>
+      <div class="stat right"><span class="label">Город</span><b id="pct">0 %</b></div>
+    </div>
+    <div class="progress"><div id="progress-fill"></div><i style="left:20%"></i><i style="left:40%"></i><i style="left:60%"></i></div>
+    <div id="toast" class="toast"></div>
+    <button id="btn-sound" class="icon" title="Звук">🔊</button>
+    <div id="stick" class="stick hidden"><div id="knob"></div></div>
+  </div>
+
+  <div id="result" class="screen dim hidden">
+    <div class="card">
+      <div id="stars" class="stars"></div>
+      <h2 id="result-title"></h2>
+      <ul id="result-stats" class="stats"></ul>
+      <button id="btn-again" class="play">Ещё раз</button>
+    </div>
+  </div>
+
+  <script type="module" src="main.js"></script>
+</body>
+</html>
