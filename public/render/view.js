@@ -38,7 +38,19 @@ export function createView(canvas) {
   sun.shadow.normalBias = 0.1;
   scene.add(sun, sun.target);
 
-  const view = { renderer, scene, camera, sun, groups: [], instances: new Map(), shake: 0, camR: 1 };
+  const view = {
+    renderer,
+    scene,
+    camera,
+    sun,
+    groups: [],
+    instances: new Map(),
+    shake: 0,
+    camR: 1,
+    focus: new THREE.Vector3(),
+    hx: 0,
+    hz: 0,
+  };
 
   // --- дыра ---
   const holeGroup = new THREE.Group();
@@ -206,11 +218,14 @@ export function createView(canvas) {
     view.groups.push(objGroup);
     for (const o of world.objects) writeInstance(view, o);
     for (const m of objGroup.children) m.instanceMatrix.needsUpdate = true;
-    view.camR = world.hole.r;
-    placeCamera(view, 1);
+    view.hx = world.hole.x;
+    view.hz = world.hole.z;
+    placeCamera(view, 0, view.hx, view.hz, 0, true);
   };
 
-  view.render = (dt) => {
+  // alpha — доля шага физики, прошедшая после последнего шага: дыра рисуется между шагами,
+  // иначе на экранах не 60 Гц она движется рывками (в одном кадре шаг есть, в другом нет)
+  view.render = (dt, alpha = 1, time = 0) => {
     const w = view.world;
     // двигаются только агенты и предметы с телами
     const dirty = new Set();
@@ -224,7 +239,9 @@ export function createView(canvas) {
     for (const m of dirty) m.instanceMatrix.needsUpdate = true;
 
     const { hole } = w;
-    holeGroup.position.set(hole.x, 0, hole.z);
+    view.hx = hole.px + (hole.x - hole.px) * alpha;
+    view.hz = hole.pz + (hole.z - hole.pz) * alpha;
+    holeGroup.position.set(view.hx, 0, view.hz);
     holeGroup.scale.set(hole.r, 1, hole.r);
 
     for (const p of dust) {
@@ -240,8 +257,8 @@ export function createView(canvas) {
       p.s.material.opacity = 0.6 * (1 - k);
     }
 
-    view.shake *= Math.exp(-dt * 5);
-    placeCamera(view, dt);
+    view.shake *= Math.exp(-dt * 6);
+    placeCamera(view, dt, view.hx, view.hz, time);
     updateSeeThrough(view);
     renderer.render(scene, camera);
   };
@@ -255,11 +272,11 @@ function updateSeeThrough(view) {
   const { camera, renderer } = view;
   camera.updateMatrixWorld();
   const size = renderer.getDrawingBufferSize(new THREE.Vector2());
-  tmpV.set(hole.x, 0, hole.z).project(camera);
+  tmpV.set(view.hx, 0, view.hz).project(camera);
   const cx = (tmpV.x * 0.5 + 0.5) * size.x;
   const cy = (tmpV.y * 0.5 + 0.5) * size.y;
   seeThrough.uHoleDepth.value = tmpV.z * 0.5 + 0.5;
-  tmpV.set(hole.x + hole.r, 0, hole.z).project(camera);
+  tmpV.set(view.hx + hole.r, 0, view.hz).project(camera);
   const ex = (tmpV.x * 0.5 + 0.5) * size.x;
   seeThrough.uHolePx.value.set(cx, cy);
   seeThrough.uHoleRadiusPx.value = Math.abs(ex - cx) + 20;
@@ -286,24 +303,34 @@ function writeInstance(view, o) {
   for (const m of inst.meshes) m.setMatrixAt(inst.i, tmpM);
 }
 
-// Камера сверху-сзади, отъезжает по мере роста дыры
-function placeCamera(view, dt) {
+// Камера сверху-сзади, отъезжает по мере роста дыры.
+// Всё выводится из одной сглаженной точки фокуса: позиция и направление взгляда не расходятся,
+// поэтому камера не покачивается. Встряска считается заново каждый кадр и не копится.
+const FOCUS_LAG = 0.18; // с: постоянная времени следования за дырой
+const ZOOM_LAG = 0.6; // с: отъезд при росте дыры
+const camPos = new THREE.Vector3();
+const camTarget = new THREE.Vector3();
+function placeCamera(view, dt, hx, hz, time = 0, snap = false) {
   const { hole } = view.world;
-  view.camR += (hole.r - view.camR) * Math.min(1, dt * 2);
+  const kf = snap ? 1 : 1 - Math.exp(-dt / FOCUS_LAG);
+  const kz = snap ? 1 : 1 - Math.exp(-dt / ZOOM_LAG);
+  view.focus.x += (hx - view.focus.x) * kf;
+  view.focus.z += (hz - view.focus.z) * kf;
+  view.camR += (hole.r - view.camR) * kz;
   const r = view.camR;
   const narrow = view.camera.aspect < 1 ? Math.min(1.8, 0.9 / view.camera.aspect) : 1;
   // почти сверху, чтобы дома не заслоняли дыру
   const back = (8 + r * 1.5) * narrow;
   const up = (24 + r * 3.4) * narrow;
-  const target = new THREE.Vector3(hole.x, 0, hole.z - r * 0.3);
-  const desired = new THREE.Vector3(hole.x, up, hole.z + back);
-  view.camera.position.lerp(desired, Math.min(1, dt * 6));
-  if (view.shake > 0.01) {
-    view.camera.position.x += (Math.random() - 0.5) * view.shake;
-    view.camera.position.y += (Math.random() - 0.5) * view.shake;
-  }
-  view.camera.lookAt(target);
-  placeSun(view, hole.x, hole.z, r);
+  // встряска — плавный шум по времени, одинаковый для позиции и цели (сдвиг без поворота)
+  const a = view.shake;
+  const sx = a * (Math.sin(time * 37) * 0.6 + Math.sin(time * 23.3) * 0.4) * 0.5;
+  const sy = a * (Math.sin(time * 31.7) * 0.6 + Math.sin(time * 19.1) * 0.4) * 0.5;
+  camTarget.set(view.focus.x + sx, sy, view.focus.z - r * 0.3);
+  camPos.set(view.focus.x + sx, up + sy, view.focus.z + back);
+  view.camera.position.copy(camPos);
+  view.camera.lookAt(camTarget);
+  placeSun(view, view.focus.x, view.focus.z, r);
 }
 
 // Тени без дрожания: размер теневой камеры меняется ступенями, а её центр в осях света

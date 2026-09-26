@@ -235,7 +235,7 @@ function frame(now) {
     stepWorld(game.world, { x: auto.x * 0.5, z: auto.z * 0.5 });
     drainEvents(game.world);
   }
-  if (game.world) view.render(dt);
+  if (game.world) view.render(dt, game.mode === 'play' ? game.acc / STEP : 1, now / 1000);
   requestAnimationFrame(frame);
 }
 
@@ -245,10 +245,9 @@ function handleEvents(events) {
     if (e.type !== 'eat') continue;
     const big = Math.max(e.size[0], e.size[1], e.size[2]);
     sfx.gulp(big);
-    if (big > 4) {
-      view.puff(w.hole.x, w.hole.z, w.hole.r, Math.min(18, Math.round(big)));
-      view.shake = Math.max(view.shake, Math.min(1.5, big / 12));
-    }
+    if (big > 4) view.puff(w.hole.x, w.hole.z, w.hole.r, Math.min(18, Math.round(big)));
+    // встряхивают только дома и крупнее, мягко
+    if (big > 8) view.shake = Math.max(view.shake, Math.min(0.8, big / 30));
   }
   for (const [type, text] of UNLOCKS) {
     if (!game.unlocked.has(type) && fits(TYPES[type].size, w.hole.r)) {
