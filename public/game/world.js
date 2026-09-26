@@ -54,7 +54,8 @@ export function createWorld(city, { duration = 120 } = {}) {
     ground,
     objects,
     byCollider,
-    hole: { x: 0, z: 0, r: radiusFor(0), target: radiusFor(0), eatenArea: 0 },
+    // px, pz — положение до последнего шага: вид рисует дыру между ними
+    hole: { x: 0, z: 0, px: 0, pz: 0, r: radiusFor(0), target: radiusFor(0), eatenArea: 0 },
     score: 0,
     eatenValue: 0,
     eatenCount: 0,
@@ -89,6 +90,8 @@ export function stepWorld(w, input) {
   w.t += STEP;
 
   // дыра: движение и плавный рост к целевому радиусу
+  hole.px = hole.x;
+  hole.pz = hole.z;
   const speed = holeSpeed(hole.r);
   const lim = w.city.half - 2;
   hole.x = clamp(hole.x + input.x * speed * STEP, -lim, lim);
